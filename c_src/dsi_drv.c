@@ -23,8 +23,6 @@
 #include <sys/types.h>
 #include <erl_driver.h>
 
-#include <string.h>
-
 #include "system.h"
 #include "msg.h"
 #include "sysgct.h"
