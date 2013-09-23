@@ -425,7 +425,7 @@ dsi_stop(ErlDrvData drv_data)
 }
 
 static void
-dsi_output(ErlDrvData drv_data, char* buf, int len)
+dsi_output(ErlDrvData drv_data, char* buf, ErlDrvSizeT len)
 {
     DsiData* dd = (DsiData*) drv_data;
 
