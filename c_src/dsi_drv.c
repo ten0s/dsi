@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  */
 
+#include <sys/types.h>
 #include <erl_driver.h>
 
 #include <string.h>
