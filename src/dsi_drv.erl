@@ -22,31 +22,35 @@
 
 -behaviour(gen_server).
 
--include("dsi_msg.hrl").
-
 %% API exports
--export([start_link/0,
-         stop/1,
-         send/3,
-         recv/2,
-         recv_async/3,
-         grab/2,
-         grab_async/3,
-         link/1,
-         unlink/1,
-         is_congested/2]).
+-export([
+	start_link/0,
+	stop/1,
+	send/3,
+	recv/2,
+	recv_async/3,
+	grab/2,
+	grab_async/3,
+	link/1,
+	unlink/1,
+	is_congested/2
+]).
 
 %% gen_server exports
--export([init/1,
-         terminate/2,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2,
-         code_change/3]).
+-export([
+	init/1,
+	terminate/2,
+	handle_call/3,
+	handle_cast/2,
+	handle_info/2,
+	code_change/3
+]).
+
+-include("dsi_msg.hrl").
 
 -type mod_id()        :: non_neg_integer().
--type recv_callback() :: fun(({'ok', dsi_msg()} | 'error') -> any()).
--type grab_callback() :: fun(({'ok', dsi_msg()} | 'empty') -> any()).
+-type recv_callback() :: fun(({ok, dsi_msg()} | error) -> any()).
+-type grab_callback() :: fun(({ok, dsi_msg()} | empty) -> any()).
 
 -define(APP_NAME, dsi).
 -define(DRV_NAME, "dsi_drv").
@@ -60,63 +64,55 @@
 -define(DSI_STANDARD, 0).
 -define(DSI_LONG,     1).
 
--record(st, {port                :: port(),
-             call_from           :: {pid(), reference()},
-             async_callback      :: recv_callback() | grab_callback(),
-             is_stopping = false :: boolean(),
-             stop_from           :: {pid(), reference()}}).
+-record(st, {
+	port                :: port(),
+	call_from           :: {pid(), reference()},
+	async_callback      :: recv_callback() | grab_callback(),
+	is_stopping = false :: boolean(),
+	stop_from           :: {pid(), reference()}
+}).
 
 %% -------------------------------------------------------------------------
 %% API
 %% -------------------------------------------------------------------------
 
--spec start_link/0 :: () -> {'ok', pid()} | {'error', any()}.
-
+-spec start_link() -> {ok, pid()} | {error, any()}.
 start_link() ->
     gen_server:start_link(?MODULE, [], []).
 
--spec stop/1 :: (pid()) -> 'ok'.
-
+-spec stop(pid()) -> ok.
 stop(Pid) ->
     gen_server:call(Pid, stop, infinity).
 
--spec send/3 :: (pid(), mod_id(), dsi_msg()) -> 'ok' | 'error'.
-
+-spec send(pid(), mod_id(), dsi_msg()) -> ok | error.
 send(Pid, ModId, Msg) ->
     gen_server:call(Pid, {send, ModId, Msg}, infinity).
 
--spec recv/2 :: (pid(), mod_id()) -> {'ok', dsi_msg()} | 'error'.
-
+-spec recv(pid(), mod_id()) -> {ok, dsi_msg()} | error.
 recv(Pid, ModId) ->
     gen_server:call(Pid, {recv, ModId}, infinity).
 
--spec recv_async/3 :: (pid(), mod_id(), recv_callback()) -> 'ok'.
-
+-spec recv_async(pid(), mod_id(), recv_callback()) -> ok.
 recv_async(Pid, ModId, Fun) ->
     gen_server:call(Pid, {recv_async, ModId, Fun}, infinity).
 
--spec grab/2 :: (pid(), mod_id()) -> {'ok', dsi_msg()} | 'empty'.
-
+-spec grab(pid(), mod_id()) -> {ok, dsi_msg()} | empty.
 grab(Pid, ModId) ->
     gen_server:call(Pid, {grab, ModId}, infinity).
 
--spec grab_async/3 :: (pid(), mod_id(), grab_callback()) -> 'ok'.
-
+-spec grab_async(pid(), mod_id(), grab_callback()) -> ok.
 grab_async(Pid, ModId, Fun) ->
     gen_server:call(Pid, {grab_async, ModId, Fun}, infinity).
 
--spec link/1 :: (pid()) -> boolean().
-
+-spec link(pid()) -> boolean().
 link(Pid) ->
     gen_server:call(Pid, link, infinity).
 
--spec unlink/1 :: (pid()) -> 'ok'.
-
+-spec unlink(pid()) -> ok.
 unlink(Pid) ->
     gen_server:call(Pid, unlink, infinity).
 
--spec is_congested/2 :: (pid(), 'standard' | 'long') -> boolean().
-
+-spec is_congested(pid(), standard | long) -> boolean().
 is_congested(Pid, Type) ->
     gen_server:call(Pid, {is_congested, Type}, infinity).
 
