@@ -53,8 +53,6 @@ typedef struct {
     ErlDrvTid         tid;
     ErlDrvCond*       cond;
     ErlDrvMutex*      mutex;
-    int               thread_created;
-    int               thread_used;
 
     int               module_id;
     int               cmd;
@@ -129,17 +127,15 @@ thread_loop(void* drv_data)
     int cmd, module_id;
 
     while (1) {
+        erl_drv_cond_wait(dd->cond, dd->mutex);
+
         erl_drv_mutex_lock(dd->mutex);
 
-        if (dd->thread_used) {
-            erl_drv_cond_wait(dd->cond, dd->mutex);
-        } else {
-            dd->thread_used = 1;
-        }
-
         cmd = dd->cmd;
-        module_id = dd->module_id;
         dd->cmd = 0;
+
+        module_id = dd->module_id;
+        dd->module_id = 0;
 
         erl_drv_mutex_unlock(dd->mutex);
 
@@ -192,15 +188,9 @@ static void
 dsi_recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
 {
     erl_drv_mutex_lock(dd->mutex);
-    dd->cmd = cmd;
     dd->module_id = module_id;
+    dd->cmd = cmd;
     erl_drv_mutex_unlock(dd->mutex);
-
-    if (!dd->thread_created) {
-        erl_drv_thread_create("dsi/thread", &dd->tid, thread_loop,
-                (void*) dd, dd->thread_opts);
-        dd->thread_created = 1;
-    }
 
     erl_drv_cond_signal(dd->cond);
 }
@@ -331,8 +321,7 @@ dsi_start(ErlDrvPort port, char* command)
 
     dd->cmd = 0;
     dd->module_id = 0;
-    dd->thread_created = 0;
-    dd->thread_used = 0;
+    dd->tid = 0;
 
     dd->mutex = erl_drv_mutex_create("dsi/mutex");
 
@@ -347,6 +336,10 @@ dsi_start(ErlDrvPort port, char* command)
     dd->thread_opts = erl_drv_thread_opts_create("dsi/thread_opts");
 
     if (dd->thread_opts == NULL)
+        return ERL_DRV_ERROR_GENERAL;
+
+    if (erl_drv_thread_create("dsi/thread", &dd->tid, thread_loop,
+                              (void*) dd, dd->thread_opts) != 0)
         return ERL_DRV_ERROR_GENERAL;
 
     // {dsi_reply, {ok, {dsi_msg, 0, 0, 0, 0, 0, 0, 0, <<>>}}}.
@@ -408,7 +401,7 @@ dsi_stop(ErlDrvData drv_data)
 {
     DsiData* dd = (DsiData*) drv_data;
 
-    if (dd->thread_created) {
+    if (dd->tid) {
         erl_drv_mutex_lock(dd->mutex);
         dd->cmd = DSI_STOP;
         erl_drv_mutex_unlock(dd->mutex);
