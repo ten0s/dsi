@@ -127,9 +127,8 @@ thread_loop(void* drv_data)
     int cmd, module_id;
 
     while (1) {
-        erl_drv_cond_wait(dd->cond, dd->mutex);
-
         erl_drv_mutex_lock(dd->mutex);
+        erl_drv_cond_wait(dd->cond, dd->mutex);
 
         cmd = dd->cmd;
         dd->cmd = 0;
