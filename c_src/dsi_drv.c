@@ -175,7 +175,13 @@ thread_loop(void* drv_data)
         TRACE(dd->log, "+loop %d\n", dd->cmd);
 
         erl_drv_mutex_lock(dd->mutex);
-        erl_drv_cond_wait(dd->cond, dd->mutex);
+
+        if (dd->cmd == DSI_INVLD) {
+            // command isn't not yet set, waiting...
+            erl_drv_cond_wait(dd->cond, dd->mutex);
+        } else {
+            // command is set already, go without waiting
+        }
 
         cmd = dd->cmd;
         dd->cmd = DSI_INVLD;
