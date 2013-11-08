@@ -193,6 +193,11 @@ dsi_recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
 
     erl_drv_cond_signal(dd->cond);
     erl_drv_mutex_unlock(dd->mutex);
+
+    if (!dd->tid) {
+        erl_drv_thread_create("dsi/thread", &dd->tid, thread_loop,
+                              (void*) dd, dd->thread_opts);
+    }
 }
 
 static void
@@ -338,9 +343,6 @@ dsi_start(ErlDrvPort port, char* command)
     if (dd->thread_opts == NULL)
         return ERL_DRV_ERROR_GENERAL;
 
-    if (erl_drv_thread_create("dsi/thread", &dd->tid, thread_loop,
-                              (void*) dd, dd->thread_opts) != 0)
-        return ERL_DRV_ERROR_GENERAL;
 
     // {dsi_reply, {ok, {dsi_msg, 0, 0, 0, 0, 0, 0, 0, <<>>}}}.
     dd->ok_msg_spec =
