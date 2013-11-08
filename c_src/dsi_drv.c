@@ -21,6 +21,12 @@
  */
 
 #include <sys/types.h>
+#include <sys/time.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdarg.h>
+#include <time.h>
+
 #include <erl_driver.h>
 
 #include "system.h"
@@ -46,6 +52,34 @@
 
 #define ERL_HDR_LEN 13
 
+#ifdef DEBUG
+#define LOG_PATH "./log/dsi-drv.log"
+#define TRACE(log, ...) debug_printf(log, __VA_ARGS__)
+
+static void
+debug_printf(FILE *log, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
+    char buf_time[20] = {0};
+    strftime(buf_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&tv.tv_sec));
+
+	char buf_log[256] = {0};
+	vsnprintf(buf_log, 256, fmt, args);
+
+	fprintf(log, "%s.%03d %s", buf_time, (int)tv.tv_usec/1000, buf_log);
+    fflush(log);
+
+    va_end(args);
+}
+#else
+#define TRACE(log, ...)
+#endif
+
 typedef struct {
     ErlDrvPort        port;
 
@@ -58,6 +92,8 @@ typedef struct {
 
     int               module_id;
     int               cmd;
+
+    FILE* log;
 } DsiData;
 
 ErlDrvTermData* ok_spec    = NULL;
@@ -97,8 +133,12 @@ reset_ok_msg_spec(ErlDrvTermData* spec)
 static void
 recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
 {
-    MSG* msg;
-    ErlDrvTermData* atom_spec;
+    TRACE(dd->log, "    +recv\n");
+	TRACE(dd->log, "        module_id: %d\n", module_id);
+	TRACE(dd->log, "        cmd: %d\n", cmd);
+
+    MSG* msg = NULL;
+    ErlDrvTermData* atom_spec = NULL;
 
     if (cmd == DSI_RECV) {
         msg = (MSG*) GCT_receive(module_id);
@@ -106,6 +146,7 @@ recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
         msg = (MSG*) GCT_grab(module_id);
     }
 
+	TRACE(dd->log, "        msg: %p\n", (void *)msg);
     if (msg != 0) {
         fill_ok_msg_spec(dd->ok_msg_spec, msg);
         driver_output_term(dd->port, dd->ok_msg_spec, OK_MSG_SPEC_LEN);
@@ -120,6 +161,8 @@ recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
 
         driver_output_term(dd->port, atom_spec, ATOM_SPEC_LEN);
     }
+
+	TRACE(dd->log, "    -recv\n");
 }
 
 static void*
@@ -129,6 +172,8 @@ thread_loop(void* drv_data)
     int cmd, module_id;
 
     while (1) {
+        TRACE(dd->log, "+loop %d\n", dd->cmd);
+
         erl_drv_mutex_lock(dd->mutex);
         erl_drv_cond_wait(dd->cond, dd->mutex);
 
@@ -146,6 +191,8 @@ thread_loop(void* drv_data)
         if (cmd == DSI_RECV || cmd == DSI_GRAB) {
             recv_or_grab(dd, module_id, cmd);
         }
+
+        TRACE(dd->log, "-loop %d\n", dd->cmd);
     }
 
     erl_drv_thread_exit(NULL);
@@ -188,6 +235,8 @@ dsi_send(DsiData* dd, unsigned char module_id, char* buf, int len)
 static void
 dsi_recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
 {
+    TRACE(dd->log, "+dsi_recv %d\n", dd->cmd);
+
     erl_drv_mutex_lock(dd->mutex);
 
     dd->module_id = module_id;
@@ -200,6 +249,8 @@ dsi_recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
         erl_drv_thread_create("dsi/thread", &dd->tid, thread_loop,
                               (void*) dd, dd->thread_opts);
     }
+
+	TRACE(dd->log, "-dsi_recv %d\n");
 }
 
 static void
@@ -326,12 +377,21 @@ dsi_start(ErlDrvPort port, char* command)
 
     dd->port = port;
 
-    dd->cmd = 0;
-    dd->module_id = 0;
+    dd->cmd = DSI_INVLD;
+    dd->module_id = DSI_INVLD;
+
     dd->tid = 0;
+	dd->log = NULL;
+
+#ifdef DEBUG
+    dd->log = fopen(LOG_PATH, "a");
+    if (!dd->log) {
+        fprintf(stderr, "Error creating log file: %s (%s)\r\n", LOG_PATH, strerror(errno));
+        return ERL_DRV_ERROR_GENERAL;
+    }
+#endif
 
     dd->mutex = erl_drv_mutex_create("dsi/mutex");
-
     if (dd->mutex == NULL)
         return ERL_DRV_ERROR_GENERAL;
 
@@ -345,6 +405,7 @@ dsi_start(ErlDrvPort port, char* command)
     if (dd->thread_opts == NULL)
         return ERL_DRV_ERROR_GENERAL;
 
+	TRACE(dd->log, "mutex: %p, cond: %p, topts: %p\n", dd->mutex, dd->cond, dd->thread_opts);
 
     // {dsi_reply, {ok, {dsi_msg, 0, 0, 0, 0, 0, 0, 0, <<>>}}}.
     dd->ok_msg_spec =
@@ -422,6 +483,11 @@ dsi_stop(ErlDrvData drv_data)
 
     driver_free((char*) dd->ok_msg_spec);
     driver_free((char*) drv_data);
+
+    if (dd->log) {
+       fclose(dd->log);
+	   dd->log = NULL;
+    }
 }
 
 static void
