@@ -176,11 +176,11 @@ thread_loop(void* drv_data)
 
         erl_drv_mutex_lock(dd->mutex);
 
-        if (dd->cmd == DSI_INVLD) {
+        // this while loop prevents the spurious wakeups.
+        // see 'Note' under erl_drv_cond_wait for details
+        while (dd->cmd == DSI_INVLD) {
             // command isn't not yet set, waiting...
             erl_drv_cond_wait(dd->cond, dd->mutex);
-        } else {
-            // command is set already, go without waiting
         }
 
         cmd = dd->cmd;
