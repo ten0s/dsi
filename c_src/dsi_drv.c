@@ -30,6 +30,8 @@
 #include "confirm.h"
 #include "ss7_inc.h"
 
+#define DSI_INVLD       -1
+
 #define DSI_SEND         0
 #define DSI_RECV         1
 #define DSI_GRAB         2
@@ -100,7 +102,7 @@ recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
 
     if (cmd == DSI_RECV) {
         msg = (MSG*) GCT_receive(module_id);
-    } else {
+    } else if (cmd == DSI_GRAB) {
         msg = (MSG*) GCT_grab(module_id);
     }
 
@@ -112,7 +114,7 @@ recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
     } else {
         if (cmd == DSI_RECV) {
             atom_spec = error_spec;
-        } else {
+        } else if (cmd == DSI_GRAB) {
             atom_spec = empty_spec;
         }
 
@@ -131,10 +133,10 @@ thread_loop(void* drv_data)
         erl_drv_cond_wait(dd->cond, dd->mutex);
 
         cmd = dd->cmd;
-        dd->cmd = 0;
+        dd->cmd = DSI_INVLD;
 
         module_id = dd->module_id;
-        dd->module_id = 0;
+        dd->module_id = DSI_INVLD;
 
         erl_drv_mutex_unlock(dd->mutex);
 
