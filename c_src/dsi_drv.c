@@ -187,11 +187,12 @@ static void
 dsi_recv_or_grab(DsiData* dd, unsigned char module_id, unsigned char cmd)
 {
     erl_drv_mutex_lock(dd->mutex);
+
     dd->module_id = module_id;
     dd->cmd = cmd;
-    erl_drv_mutex_unlock(dd->mutex);
 
     erl_drv_cond_signal(dd->cond);
+    erl_drv_mutex_unlock(dd->mutex);
 }
 
 static void
@@ -402,9 +403,12 @@ dsi_stop(ErlDrvData drv_data)
 
     if (dd->tid) {
         erl_drv_mutex_lock(dd->mutex);
+
         dd->cmd = DSI_STOP;
-        erl_drv_mutex_unlock(dd->mutex);
+
         erl_drv_cond_signal(dd->cond);
+        erl_drv_mutex_unlock(dd->mutex);
+
         erl_drv_thread_join(dd->tid, NULL);
     }
 
