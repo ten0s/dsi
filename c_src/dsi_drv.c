@@ -487,13 +487,13 @@ dsi_stop(ErlDrvData drv_data)
     erl_drv_mutex_destroy(dd->mutex);
     erl_drv_cond_destroy(dd->cond);
 
-    driver_free((char*) dd->ok_msg_spec);
-    driver_free((char*) drv_data);
-
     if (dd->log) {
        fclose(dd->log);
-	   dd->log = NULL;
+       dd->log = NULL;
     }
+
+    driver_free((char*) dd->ok_msg_spec);
+    driver_free((char*) drv_data);
 }
 
 static void
