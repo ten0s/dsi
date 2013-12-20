@@ -139,11 +139,12 @@ handle_call({send, ModId, Msg}, From, St) ->
         instance = Instance,
         src      = Src,
         dst      = Dst,
+        rsp_req  = RspReq,
         status   = Status,
         err_info = ErrInfo,
         body     = Body
     } = Msg,
-    Hdr = <<Type:16, Id:16, Instance:16, Src:8, Dst:8, Status:8, ErrInfo:32>>,
+    Hdr = <<Type:16, Id:16, Instance:16, Src:8, Dst:8, RspReq:16, Status:8, ErrInfo:32>>,
     port_command(St#st.port, [?DSI_SEND, ModId, Hdr, Body]),
     {noreply, St#st{call_from = From}};
 

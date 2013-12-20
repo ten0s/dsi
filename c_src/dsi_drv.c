@@ -50,7 +50,7 @@
 #define ATOM_SPEC_LEN    6
 #define OK_MSG_SPEC_LEN  29
 
-#define ERL_HDR_LEN 13
+#define ERL_HDR_LEN 15
 
 #ifdef DEBUG
 #define LOG_PATH "./log/dsi-drv.log"
@@ -214,14 +214,16 @@ dsi_send(DsiData* dd, unsigned char module_id, char* buf, int len)
 
     u16 type = (u16) runpackbytes((u8*) buf, 0, 2);
     u16 id   = (u16) runpackbytes((u8*) buf, 2, 2);
+    u16 rsp_req = (u16) runpackbytes((u8*) buf, 8, 2);
 
-    if ((msg = getm(type, id, 0, len - ERL_HDR_LEN)) != 0) {
-        GCT_set_instance((u16) runpackbytes((u8*) buf, 4, 2), &msg->hdr);
+    if ((msg = getm(type, id, rsp_req, len - ERL_HDR_LEN)) != 0) {
+        u16 instance = (u16) runpackbytes((u8*) buf, 4, 2);
+        GCT_set_instance(instance, &msg->hdr);
 
         msg->hdr.src      = (u8)  runpackbytes((u8*) buf, 6, 1);
         msg->hdr.dst      = (u8)  runpackbytes((u8*) buf, 7, 1);
-        msg->hdr.status   = (u8)  runpackbytes((u8*) buf, 8, 1);
-        msg->hdr.err_info = (u32) runpackbytes((u8*) buf, 9, 4);
+        msg->hdr.status   = (u8)  runpackbytes((u8*) buf, 10, 1);
+        msg->hdr.err_info = (u32) runpackbytes((u8*) buf, 11, 4);
 
         pptr = get_param(msg);
         memset(pptr, 0, msg->len);
