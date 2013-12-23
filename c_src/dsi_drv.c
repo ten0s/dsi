@@ -48,7 +48,7 @@
 #define DSI_STOP         10
 
 #define ATOM_SPEC_LEN    6
-#define OK_MSG_SPEC_LEN  29
+#define OK_MSG_SPEC_LEN  31
 
 #define ERL_HDR_LEN 15
 
@@ -110,10 +110,11 @@ fill_ok_msg_spec(ErlDrvTermData* spec, MSG* msg)
     spec[11] = GCT_get_instance(&msg->hdr);
     spec[13] = msg->hdr.src;
     spec[15] = msg->hdr.dst;
-    spec[17] = msg->hdr.status;
-    spec[19] = msg->hdr.err_info;
-    spec[21] = (ErlDrvTermData) get_param(msg);
-    spec[22] = msg->len;
+    spec[17] = msg->hdr.rsp_req;
+    spec[19] = msg->hdr.status;
+    spec[21] = msg->hdr.err_info;
+    spec[23] = (ErlDrvTermData) get_param(msg);
+    spec[24] = msg->len;
 }
 
 static void
@@ -126,8 +127,9 @@ reset_ok_msg_spec(ErlDrvTermData* spec)
     spec[15] = 0;
     spec[17] = 0;
     spec[19] = 0;
-    spec[21] = (ErlDrvTermData) NULL;
-    spec[22] = 0;
+    spec[21] = 0;
+    spec[23] = (ErlDrvTermData) NULL;
+    spec[24] = 0;
 }
 
 static void
@@ -415,7 +417,7 @@ dsi_start(ErlDrvPort port, char* command)
 
 	TRACE(dd->log, "mutex: %p, cond: %p, topts: %p\n", dd->mutex, dd->cond, dd->thread_opts);
 
-    // {dsi_reply, {ok, {dsi_msg, 0, 0, 0, 0, 0, 0, 0, <<>>}}}.
+    // {dsi_reply, {ok, {dsi_msg, 0, 0, 0, 0, 0, 0, 0, 0, <<>>}}}.
     dd->ok_msg_spec =
         (ErlDrvTermData*) driver_alloc(OK_MSG_SPEC_LEN * sizeof(ErlDrvTermData));
 
@@ -446,25 +448,28 @@ dsi_start(ErlDrvPort port, char* command)
     //             dst,
     dd->ok_msg_spec[14] = ERL_DRV_UINT;
     dd->ok_msg_spec[15] = 0;
-    //             status,
+    //             rsp_req,
     dd->ok_msg_spec[16] = ERL_DRV_UINT;
     dd->ok_msg_spec[17] = 0;
-    //             err_info
+    //             status,
     dd->ok_msg_spec[18] = ERL_DRV_UINT;
     dd->ok_msg_spec[19] = 0;
+    //             err_info
+    dd->ok_msg_spec[20] = ERL_DRV_UINT;
+    dd->ok_msg_spec[21] = 0;
     //             <<>>
-    dd->ok_msg_spec[20] = ERL_DRV_BUF2BINARY;
-    dd->ok_msg_spec[21] = (ErlDrvTermData) NULL;
-    dd->ok_msg_spec[22] = 0;
+    dd->ok_msg_spec[22] = ERL_DRV_BUF2BINARY;
+    dd->ok_msg_spec[23] = (ErlDrvTermData) NULL;
+    dd->ok_msg_spec[24] = 0;
     //         } dsi_msg
-    dd->ok_msg_spec[23] = ERL_DRV_TUPLE;
-    dd->ok_msg_spec[24] = 9;
-    //     } ok
     dd->ok_msg_spec[25] = ERL_DRV_TUPLE;
-    dd->ok_msg_spec[26] = 2;
-    // } dsi_reply
+    dd->ok_msg_spec[26] = 10;
+    //     } ok
     dd->ok_msg_spec[27] = ERL_DRV_TUPLE;
     dd->ok_msg_spec[28] = 2;
+    // } dsi_reply
+    dd->ok_msg_spec[29] = ERL_DRV_TUPLE;
+    dd->ok_msg_spec[30] = 2;
 
     return (ErlDrvData) dd;
 }
