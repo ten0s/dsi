@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <time.h>
+#include <string.h>
 
 #include <erl_driver.h>
 
